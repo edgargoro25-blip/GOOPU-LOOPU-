@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Goopu Loopu - Fixed Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        :root { --theme-color: #00ffff; }
+
+        body {
+            margin: 0; overflow: hidden; background: #000;
+            color: white; font-family: 'Orbitron', sans-serif;
+            display: flex; flex-direction: column; align-items: center; height: 100vh;
+            touch-action: none; -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        /* --- FIRMA --- */
+        #signature {
+            position: fixed; bottom: 10px; left: 10px;
+            color: #ff0000; font-weight: bold; font-size: 1rem;
+            z-index: 2000; pointer-events: none;
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        /* --- INTERFAZ (CAPAS) --- */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 100; background: rgba(0,0,0,0.95);
+            text-align: center;
+        }
+        .hidden { display: none !important; }
+
+        h1 { 
+            text-shadow: 0 0 20px var(--theme-color); 
+            font-size: 3rem; margin: 0 0 20px 0; font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        .btn {
+            padding: 15px 30px; font-size: 1.1rem; background: rgba(255,255,255,0.05);
+            color: var(--theme-color); border: 2px solid var(--theme-color);
+            border-radius: 8px; cursor: pointer; text-transform: uppercase;
+            margin: 10px; min-width: 280px; font-weight: bold; transition: 0.2s;
+        }
+        .btn:hover { background: var(--theme-color); color: #000; box-shadow: 0 0 25px var(--theme-color); }
+        .btn:active { transform: scale(0.95); }
+
+        /* PALETA DE COLORES */
+        #color-palette {
+            display: flex; gap: 15px; margin-bottom: 30px;
+            padding: 10px; background: rgba(255,255,255,0.1); border-radius: 20px;
+        }
+        .color-dot { 
+            width: 35px; height: 35px; border-radius: 50%; 
+            border: 3px solid #fff; cursor: pointer; transition: transform 0.2s;
+        }
+        .color-dot:hover { transform: scale(1.2); }
+
+        /* LISTA DE NIVELES */
+        .song-grid { 
+            display: flex; flex-direction: column; gap: 10px; 
+            width: 90%; max-width: 400px; max-height: 60vh; overflow-y: auto; 
+        }
+        .song-card { 
+            padding: 15px; background: rgba(255,255,255,0.1); 
+            border-radius: 8px; cursor: pointer; border: 1px solid #333; 
+            display: flex; justify-content: space-between; align-items: center;
+            transition: 0.2s; text-align: left;
+        }
+        .song-card:hover { border-color: var(--theme-color); background: rgba(255,255,255,0.15); }
+        .diff-tag { 
+            font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; 
+            color: #000; font-weight: bold; min-width: 60px; text-align: center; 
+        }
+
+        /* --- JUEGO --- */
+        #game-container { position: relative; width: 100%; max-width: 600px; height: 100%; background: #05010a; border-left: 2px solid #333; border-right: 2px solid #333; }
+        canvas { width: 100%; height: 100%; display: block; }
+
+        /* HUD & BOTONES */
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; display: none; }
+        
+        #pause-btn-ui { 
+            position: absolute; top: 15px; left: 15px; pointer-events: auto; 
+            background: rgba(0,0,0,0.5); border: 2px solid #fff; color: #fff; 
+            width: 50px; height: 50px; border-radius: 50%; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; font-weight: bold; z-index: 2000; /* Z-Index alto para que funcione */
+        }
+        
+        #score-display { position: absolute; top: 20px; right: 20px; font-size: 1.8rem; text-shadow: 0 0 10px var(--theme-color); font-weight: bold; }
+        #combo-text { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); font-size: 4rem; font-weight: 900; opacity: 0; transition: opacity 0.15s; text-align: center; width: 100%; }
+
+        /* SLIDER VOLUMEN (SOLO PAUSA) */
+        .volume-container { margin: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--theme-color); }
+        input[type=range] { width: 220px; height: 6px; cursor: pointer; accent-color: var(--theme-color); }
+
+        #touch-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; z-index: 10; }
+        .touch-lane { flex: 1; height: 100%; /* debug: border: 1px solid red; */ }
+    </style>
+</head>
+<body>
+
+    <div id="signature">by sigindragon</div>
+
+    <div id="menu-main" class="overlay">
+        <h1>GOOPU LOOPU</h1>
+        
+        <div id="color-palette"></div>
+        
+        <button class="btn" onclick="openLevels()">JUGAR NIVELES</button>
+        <button class="btn" onclick="document.getElementById('audio-upload').click()">SUBIR MI MÚSICA</button>
+        <input type="file" id="audio-upload" accept="audio/*" class="hidden">
+        
+        <button class="btn" id="mode-toggle" onclick="toggleMode()">MODO: PC</button>
+        
+        <div id="loading-msg" style="margin-top:20px; color: #ff0; display:none;">Cargando canción, espera...</div>
+    </div>
+
+    <div id="menu-levels" class="overlay hidden">
+        <h2 style="color:var(--theme-color); margin-bottom:20px;">SELECCIONA CANCIÓN</h2>
+        <div class="song-grid" id="levels-list"></div>
+        <button class="btn" style="margin-top:20px; border-color:#fff; color:#fff;" onclick="showMain()">VOLVER</button>
+    </div>
+
+    <div id="menu-pause" class="overlay hidden">
+        <h1 style="font-size:4rem;">PAUSA</h1>
+        <div class="volume-container">
+            <label>VOLUMEN</label>
+            <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.7">
+        </div>
+        <button class="btn" onclick="resumeGame()">CONTINUAR</button>
+        <button class="btn" style="border-color:#f33; color:#f33;" onclick="location.reload()">SALIR</button>
+    </div>
+
+    <div id="layer-results" class="overlay hidden">
+        <h1 style="color:#fff;">¡TERMINADO!</h1>
+        <div style="font-size: 2.5rem; margin: 20px 0;">SCORE: <span id="final-score" style="color:var(--theme-color)">0</span></div>
+        <button class="btn" onclick="location.reload()">VOLVER AL MENÚ</button>
+    </div>
+
+    <div id="layer-countdown" class="overlay hidden">
+        <div id="countdown-text" style="font-size: 10rem; font-weight: 900; color: var(--theme-color); text-shadow: 0 0 50px var(--theme-color);">3</div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="touch-layer" class="hidden">
+            <div class="touch-lane" ontouchstart="handleHit(0, event)" onmousedown="handleHit(0, event)"></div>
+            <div class="touch-lane" ontouchstart="handleHit(1, event)" onmousedown="handleHit(1, event)"></div>
+            <div class="touch-lane" ontouchstart="handleHit(2, event)" onmousedown="handleHit(2, event)"></div>
+            <div class="touch-lane" ontouchstart="handleHit(3, event)" onmousedown="handleHit(3, event)"></div>
+        </div>
+        
+        <div id="hud">
+            <div id="score-display">0</div>
+            <div id="combo-text">PERFECT</div>
+            <button id="pause-btn-ui" onclick="pauseGame()">||</button>
+        </div>
+    </div>
+
+<script>
+    // --- LISTA DE NIVELES (Dropbox Links corregidos) ---
+    const levels = [
+        { id: 1, name: "Camuflash", difficulty: "hard", url: "https://files.catbox.moe/8kcoq7.mp3" },
+        { id: 2, name: "Miau", difficulty: "medium", url: "https://files.catbox.moe/3ymop1.mp3" },
+        { id: 3, name: "Passionfruit", difficulty: "easy", url: "https://files.catbox.moe/3i0yh1.mp3" },
+        { id: 4, name: "Orula", difficulty: "medium", url: "https://files.catbox.moe/lsa4pe.mp3" },
+        { id: 5, name: "Low Rider", difficulty: "hard", url: "https://files.catbox.moe/f6bsw0.mp3" }
+    ];
+
+    const colors = ['#00ffff', '#ff0055', '#00ff66', '#aa00ff', '#ffcc00'];
+    let currentTheme = colors[0];
+    
+    // Variables de Juego
+    let audioCtx, audioBuffer, audioSource, gainNode;
+    let notes = [], score = 0, combo = 0;
+    let isPlaying = false, isPaused = false, isMobile = false;
+    let startTime = 0, pauseTime = 0;
+    let animId;
+    let laneFlashes = [0,0,0,0];
+    let globalVolume = 0.7;
+
+    // Configuración Dinámica
+    let noteSpeed = 800;
+    let noteShape = 'rect'; // rect, circle, diamond
+    let difficultyMode = 'medium';
+
+    // Dimensiones
+    let canvas, ctx, LANE_WIDTH, HIT_LINE_Y;
+
+    // --- INICIALIZACIÓN ---
+    window.onload = () => {
+        canvas = document.getElementById('gameCanvas');
+        ctx = canvas.getContext('2d');
+        resize();
+        window.addEventListener('resize', resize);
+        
+        initUI();
+        
+        // Listener Volumen
+        document.getElementById('vol-slider').addEventListener('input', (e) => {
+            globalVolume = e.target.value;
+            if(gainNode) gainNode.gain.value = globalVolume;
+        });
+    };
+
+    function resize() {
+        const cont = document.getElementById('game-container');
+        canvas.width = cont.clientWidth;
+        canvas.height = cont.clientHeight;
+        LANE_WIDTH = canvas.width / 4;
+        HIT_LINE_Y = canvas.height - 140;
+    }
+
+    function initUI() {
+        // Colores
+        const pal = document.getElementById('color-palette');
+        pal.innerHTML = '';
+        colors.forEach(c => {
+            const d = document.createElement('div');
+            d.className = 'color-dot'; 
+            d.style.backgroundColor = c;
+            d.onclick = () => { 
+                currentTheme = c; 
+                document.documentElement.style.setProperty('--theme-color', c); 
+            };
+            pal.appendChild(d);
+        });
+
+        // Lista Niveles
+        const list = document.getElementById('levels-list');
+        list.innerHTML = '';
+        levels.forEach(lvl => {
+            const d = document.createElement('div');
+            d.className = 'song-card';
+            
+            let color = '#fff';
+            if(lvl.difficulty === 'easy') color = '#0f0';
+            if(lvl.difficulty === 'medium') color = '#fb0';
+            if(lvl.difficulty === 'hard') color = '#f00';
+
+            d.innerHTML = `
+                <span>${lvl.name}</span>
+                <span class="diff-tag" style="background:${color}">${lvl.difficulty}</span>
+            `;
+            d.onclick = () => loadSong(lvl.url, lvl.difficulty);
+            list.appendChild(d);
+        });
+    }
+
+    function showMain() {
+        document.getElementById('menu-levels').classList.add('hidden');
+        document.getElementById('menu-main').classList.remove('hidden');
+    }
+    function openLevels() {
+        document.getElementById('menu-main').classList.add('hidden');
+        document.getElementById('menu-levels').classList.remove('hidden');
+    }
+    function toggleMode() {
+        isMobile = !isMobile;
+        document.getElementById('mode-toggle').innerText = isMobile ? "MODO: CELULAR" : "MODO: PC";
+        document.getElementById('touch-layer').classList.toggle('hidden', !isMobile);
+    }
+
+    // --- MOTOR DE AUDIO ---
+    async function loadSong(url, diff) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+        document.getElementById('menu-levels').classList.add('hidden');
+        document.getElementById('menu-main').classList.add('hidden');
+        
+        // Mostrar mensaje de carga si es necesario
+        // (Aquí simplemente esperamos la respuesta)
+        
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Error red");
+            const arrayBuffer = await response.arrayBuffer();
+            audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+            
+            // Configurar dificultad
+            setDifficulty(diff);
+            generateNotes(); // Generar notas
+            
+            startCountdown();
+
+        } catch (e) {
+            alert("Error cargando la canción. Intenta de nuevo o revisa tu conexión.");
+            showMain();
+        }
+    }
+
+    // Subida manual
+    document.getElementById('audio-upload').onchange = async (e) => {
+        if(!e.target.files[0]) return;
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const file = e.target.files[0];
+        const arrayBuffer = await file.arrayBuffer();
+        audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        
+        setDifficulty('medium');
+        generateNotes();
+        document.getElementById('menu-main').classList.add('hidden');
+        startCountdown();
+    };
+
+    function setDifficulty(diff) {
+        difficultyMode = diff;
+        if (diff === 'easy') {
+            noteSpeed = 500; 
+            noteShape = 'circle';
+        } else if (diff === 'medium') {
+            noteSpeed = 750; 
+            noteShape = 'rect';
+        } else if (diff === 'hard') {
+            noteSpeed = 1000; 
+            noteShape = 'diamond';
+        }
+    }
+
+    function generateNotes() {
+        notes = [];
+        const rawData = audioBuffer.getChannelData(0);
+        
+        // Ajustes de sensibilidad para asegurar que CAIGAN NOTAS
+        let threshold = 0.15; // Sensibilidad (más bajo = más notas)
+        let interval = 0.15;  // Tiempo mínimo entre notas
+        let sampleStep = 15;  // Resolución de escaneo
+
+        if (difficultyMode === 'hard') {
+            threshold = 0.08; // Muy sensible
+            interval = 0.10;  // Muy rápido
+            sampleStep = 20; 
+        } else if (difficultyMode === 'easy') {
+            threshold = 0.25;
+            interval = 0.35;
+        }
+
+        const step = Math.floor(audioBuffer.sampleRate / sampleStep);
+
+        for (let i = step; i < rawData.length; i += step) {
+            const val = Math.abs(rawData[i]);
+            const prev = Math.abs(rawData[i-step]);
+            
+            // Detectar pico de volumen
+            if (val > threshold && val > prev * 1.05) {
+                const t = i / audioBuffer.sampleRate;
+                // Evitar notas encimadas
+                if (notes.length === 0 || t - notes[notes.length-1].time > interval) {
+                    notes.push({ 
+                        time: t, 
+                        lane: Math.floor(Math.random() * 4), 
+                        hit: false, 
+                        missed: false 
+                    });
+                }
+            }
+        }
+        
+        // Fallback: Si no se generaron notas (canción muy bajita), generar patrón aleatorio
+        if (notes.length < 10) {
+            for(let t=1; t<audioBuffer.duration; t+=0.5) {
+                notes.push({ time: t, lane: Math.floor(Math.random()*4), hit:false, missed:false });
+            }
+        }
+    }
+
+    // --- GAME LOOP ---
+    function startCountdown() {
+        const layer = document.getElementById('layer-countdown');
+        const txt = document.getElementById('countdown-text');
+        layer.classList.remove('hidden');
+        let count = 3;
+        txt.innerText = count;
+        
+        const interval = setInterval(() => {
+            count--;
+            if (count > 0) txt.innerText = count;
+            else if (count === 0) txt.innerText = "¡YA!";
+            else {
+                clearInterval(interval);
+                layer.classList.add('hidden');
+                startGame();
+            }
+        }, 1000);
+    }
+
+    function startGame() {
+        score = 0; combo = 0; isPlaying = true; isPaused = false;
+        document.getElementById('hud').style.display = 'block';
+        document.getElementById('score-display').innerText = 0;
+        
+        playAudioSource(0);
+        loop();
+    }
+
+    function playAudioSource(offset) {
+        if(audioSource) audioSource.stop();
+        audioSource = audioCtx.createBufferSource();
+        audioSource.buffer = audioBuffer;
+        
+        gainNode = audioCtx.createGain();
+        gainNode.gain.value = globalVolume;
+        
+        audioSource.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        audioSource.start(0, offset);
+        startTime = audioCtx.currentTime - offset;
+    }
+
+    function pauseGame() {
+        if(!isPlaying || isPaused) return;
+        isPaused = true;
+        pauseTime = audioCtx.currentTime - startTime;
+        audioSource.stop();
+        cancelAnimationFrame(animId);
+        document.getElementById('menu-pause').classList.remove('hidden');
+    }
+
+    function resumeGame() {
+        isPaused = false;
+        document.getElementById('menu-pause').classList.add('hidden');
+        playAudioSource(pauseTime);
+        loop();
+    }
+
+    // --- INPUT ---
+    function handleHit(lane, e) {
+        if(e) e.preventDefault(); // Evitar zoom en celular
+        if(!isPlaying || isPaused) return;
+
+        laneFlashes[lane] = 1; // Efecto visual
+        
+        const now = audioCtx.currentTime - startTime;
+        // Ventana de hit (margen de error)
+        let hitWindow = difficultyMode === 'hard' ? 0.2 : 0.3;
+        
+        const note = notes.find(n => 
+            n.lane === lane && 
+            !n.hit && !n.missed && 
+            Math.abs(n.time - now) < hitWindow
+        );
+
+        if(note) {
+            note.hit = true;
+            combo++;
+            score += 100 + (combo * 10);
+            showFeedback("PERFECT", currentTheme);
+        } else {
+            combo = 0;
+            showFeedback("MISS", "#f00");
+        }
+        document.getElementById('score-display').innerText = score;
+    }
+
+    function showFeedback(text, col) {
+        const el = document.getElementById('combo-text');
+        el.innerText = text + (combo > 1 ? ` x${combo}` : "");
+        el.style.color = col;
+        el.style.opacity = 1;
+        // Pequeño timeout para fade out
+        setTimeout(() => el.style.opacity = 0, 400);
+    }
+
+    // Teclado
+    window.addEventListener('keydown', (e) => {
+        if(e.key === "Escape") { pauseGame(); return; }
+        const k = e.key.toLowerCase();
+        const map = ['d','f','j','k'];
+        const idx = map.indexOf(k);
+        if(idx > -1) handleHit(idx);
+    });
+
+    // --- RENDER ---
+    function loop() {
+        if(!isPlaying || isPaused) return;
+        
+        const now = audioCtx.currentTime - startTime;
+        
+        // Limpiar
+        ctx.fillStyle = "#05010a";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Dibujar Carriles
+        for(let i=0; i<4; i++) {
+            const x = i * LANE_WIDTH;
+            
+            // Flash de carril
+            if(laneFlashes[i] > 0) {
+                ctx.fillStyle = currentTheme;
+                ctx.globalAlpha = laneFlashes[i] * 0.3;
+                ctx.fillRect(x, 0, LANE_WIDTH, canvas.height);
+                laneFlashes[i] -= 0.1;
+            }
+            
+            // Línea divisoria
+            ctx.globalAlpha = 0.2;
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, 0, LANE_WIDTH, canvas.height);
+        }
+        ctx.globalAlpha = 1;
+
+        // HIT ZONE (Línea de golpe)
+        ctx.strokeStyle = currentTheme;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(0, HIT_LINE_Y - 40, canvas.width, 80);
+
+        // DIBUJAR NOTAS
+        notes.forEach(n => {
+            if(n.hit) return;
+            
+            const y = HIT_LINE_Y - (n.time - now) * noteSpeed;
+            
+            // Miss
+            if(y > canvas.height && !n.missed) {
+                n.missed = true;
+                combo = 0;
+                showFeedback("MISS", "#f00");
+            }
+
+            // Visible
+            if(y > -50 && y < canvas.height + 50) {
+                const x = n.lane * LANE_WIDTH + (LANE_WIDTH/2);
+                
+                ctx.fillStyle = "#fff";
+                ctx.shadowColor = currentTheme;
+                ctx.shadowBlur = 15;
+
+                // Formas
+                if(noteShape === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 25, 0, Math.PI*2);
+                    ctx.fill();
+                } 
+                else if (noteShape === 'diamond') {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(Math.PI/4);
+                    ctx.fillRect(-20, -20, 40, 40);
+                    ctx.restore();
+                } 
+                else {
+                    // Rectángulo
+                    ctx.fillRect(x - 30, y - 20, 60, 40);
+                }
+                ctx.shadowBlur = 0;
+            }
+        });
+
+        // Fin del juego
+        if(now > audioBuffer.duration + 1) {
+            isPlaying = false;
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('layer-results').classList.remove('hidden');
+        } else {
+            animId = requestAnimationFrame(loop);
+        }
+    }
+</script>
+</body>
+</html>
