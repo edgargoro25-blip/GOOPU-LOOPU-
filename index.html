@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Goopu Loopu - Fixed Edition</title>
+    <title>Goopu Loopu - Multiplayer Edition</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
         :root { --theme-color: #00ffff; }
@@ -16,7 +17,6 @@
             user-select: none;
         }
 
-        /* --- FIRMA --- */
         #signature {
             position: fixed; bottom: 10px; left: 10px;
             color: #ff0000; font-weight: bold; font-size: 1rem;
@@ -24,7 +24,6 @@
             text-shadow: 2px 2px 0px #000;
         }
 
-        /* --- INTERFAZ (CAPAS) --- */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -48,7 +47,15 @@
         .btn:hover { background: var(--theme-color); color: #000; box-shadow: 0 0 25px var(--theme-color); }
         .btn:active { transform: scale(0.95); }
 
-        /* PALETA DE COLORES */
+        /* INPUT DE SALA MULTIJUGADOR */
+        #room-input {
+            padding: 10px; font-size: 1.2rem; text-align: center;
+            background: transparent; border: 2px solid #fff; color: #fff;
+            border-radius: 8px; margin-bottom: 20px; font-family: 'Orbitron', sans-serif;
+            width: 200px;
+        }
+        #room-input::placeholder { color: rgba(255,255,255,0.5); }
+
         #color-palette {
             display: flex; gap: 15px; margin-bottom: 30px;
             padding: 10px; background: rgba(255,255,255,0.1); border-radius: 20px;
@@ -59,7 +66,6 @@
         }
         .color-dot:hover { transform: scale(1.2); }
 
-        /* LISTA DE NIVELES */
         .song-grid { 
             display: flex; flex-direction: column; gap: 10px; 
             width: 90%; max-width: 400px; max-height: 60vh; overflow-y: auto; 
@@ -76,11 +82,9 @@
             color: #000; font-weight: bold; min-width: 60px; text-align: center; 
         }
 
-        /* --- JUEGO --- */
         #game-container { position: relative; width: 100%; max-width: 600px; height: 100%; background: #05010a; border-left: 2px solid #333; border-right: 2px solid #333; }
         canvas { width: 100%; height: 100%; display: block; }
 
-        /* HUD & BOTONES */
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; display: none; }
         
         #pause-btn-ui { 
@@ -88,18 +92,25 @@
             background: rgba(0,0,0,0.5); border: 2px solid #fff; color: #fff; 
             width: 50px; height: 50px; border-radius: 50%; cursor: pointer; 
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.2rem; font-weight: bold; z-index: 2000; /* Z-Index alto para que funcione */
+            font-size: 1.2rem; font-weight: bold; z-index: 2000; 
         }
         
         #score-display { position: absolute; top: 20px; right: 20px; font-size: 1.8rem; text-shadow: 0 0 10px var(--theme-color); font-weight: bold; }
+        
+        /* ESTILO PARA EL RIVAL */
+        #rival-display { 
+            position: absolute; top: 60px; right: 20px; 
+            font-size: 1.2rem; color: #ff3333; font-weight: bold;
+            text-shadow: 0 0 5px #ff0000;
+        }
+
         #combo-text { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); font-size: 4rem; font-weight: 900; opacity: 0; transition: opacity 0.15s; text-align: center; width: 100%; }
 
-        /* SLIDER VOLUMEN (SOLO PAUSA) */
         .volume-container { margin: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--theme-color); }
         input[type=range] { width: 220px; height: 6px; cursor: pointer; accent-color: var(--theme-color); }
 
         #touch-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; z-index: 10; }
-        .touch-lane { flex: 1; height: 100%; /* debug: border: 1px solid red; */ }
+        .touch-lane { flex: 1; height: 100%; }
     </style>
 </head>
 <body>
@@ -108,6 +119,8 @@
 
     <div id="menu-main" class="overlay">
         <h1>GOOPU LOOPU</h1>
+        
+        <input type="text" id="room-input" placeholder="CÓDIGO DE SALA" maxlength="6">
         
         <div id="color-palette"></div>
         
@@ -122,6 +135,7 @@
 
     <div id="menu-levels" class="overlay hidden">
         <h2 style="color:var(--theme-color); margin-bottom:20px;">SELECCIONA CANCIÓN</h2>
+        <p style="font-size:0.8rem; color:#fff; margin-bottom:10px;">(Asegúrense de elegir la misma)</p>
         <div class="song-grid" id="levels-list"></div>
         <button class="btn" style="margin-top:20px; border-color:#fff; color:#fff;" onclick="showMain()">VOLVER</button>
     </div>
@@ -138,7 +152,8 @@
 
     <div id="layer-results" class="overlay hidden">
         <h1 style="color:#fff;">¡TERMINADO!</h1>
-        <div style="font-size: 2.5rem; margin: 20px 0;">SCORE: <span id="final-score" style="color:var(--theme-color)">0</span></div>
+        <div style="font-size: 2.5rem; margin: 20px 0;">TU SCORE: <span id="final-score" style="color:var(--theme-color)">0</span></div>
+        <div style="font-size: 1.5rem; margin: 10px 0; color:#ff3333;">RIVAL: <span id="final-rival-score">0</span></div>
         <button class="btn" onclick="location.reload()">VOLVER AL MENÚ</button>
     </div>
 
@@ -158,13 +173,35 @@
         
         <div id="hud">
             <div id="score-display">0</div>
+            <div id="rival-display">RIVAL: 0</div>
             <div id="combo-text">PERFECT</div>
             <button id="pause-btn-ui" onclick="pauseGame()">||</button>
         </div>
     </div>
 
 <script>
-    // --- LISTA DE NIVELES (Dropbox Links corregidos) ---
+    // --- CONEXIÓN MULTIJUGADOR ---
+    // ¡¡¡REEMPLAZA ESTO CON TU URL DE RAILWAY!!!
+    const socket = io("https://goopu-server.onrender.com"); 
+    
+    let currentRoom = "global";
+    let rivalScore = 0;
+
+    socket.on('connect', () => {
+        console.log("Conectado al servidor multijugador!");
+    });
+
+    socket.on('opponent-data', (data) => {
+        rivalScore = data.score;
+        document.getElementById('rival-display').innerText = "RIVAL: " + rivalScore;
+        // Efecto visual si el rival hace combo
+        if(data.combo > 5 && data.combo % 10 === 0) {
+            document.getElementById('rival-display').style.transform = "scale(1.2)";
+            setTimeout(() => document.getElementById('rival-display').style.transform = "scale(1)", 200);
+        }
+    });
+
+    // --- CÓDIGO DEL JUEGO ORIGINAL ---
     const levels = [
         { id: 1, name: "Camuflash", difficulty: "hard", url: "https://files.catbox.moe/8kcoq7.mp3" },
         { id: 2, name: "Miau", difficulty: "medium", url: "https://files.catbox.moe/3ymop1.mp3" },
@@ -176,7 +213,6 @@
     const colors = ['#00ffff', '#ff0055', '#00ff66', '#aa00ff', '#ffcc00'];
     let currentTheme = colors[0];
     
-    // Variables de Juego
     let audioCtx, audioBuffer, audioSource, gainNode;
     let notes = [], score = 0, combo = 0;
     let isPlaying = false, isPaused = false, isMobile = false;
@@ -185,15 +221,12 @@
     let laneFlashes = [0,0,0,0];
     let globalVolume = 0.7;
 
-    // Configuración Dinámica
     let noteSpeed = 800;
-    let noteShape = 'rect'; // rect, circle, diamond
+    let noteShape = 'rect';
     let difficultyMode = 'medium';
 
-    // Dimensiones
     let canvas, ctx, LANE_WIDTH, HIT_LINE_Y;
 
-    // --- INICIALIZACIÓN ---
     window.onload = () => {
         canvas = document.getElementById('gameCanvas');
         ctx = canvas.getContext('2d');
@@ -202,7 +235,6 @@
         
         initUI();
         
-        // Listener Volumen
         document.getElementById('vol-slider').addEventListener('input', (e) => {
             globalVolume = e.target.value;
             if(gainNode) gainNode.gain.value = globalVolume;
@@ -218,7 +250,6 @@
     }
 
     function initUI() {
-        // Colores
         const pal = document.getElementById('color-palette');
         pal.innerHTML = '';
         colors.forEach(c => {
@@ -232,13 +263,11 @@
             pal.appendChild(d);
         });
 
-        // Lista Niveles
         const list = document.getElementById('levels-list');
         list.innerHTML = '';
         levels.forEach(lvl => {
             const d = document.createElement('div');
             d.className = 'song-card';
-            
             let color = '#fff';
             if(lvl.difficulty === 'easy') color = '#0f0';
             if(lvl.difficulty === 'medium') color = '#fb0';
@@ -258,6 +287,12 @@
         document.getElementById('menu-main').classList.remove('hidden');
     }
     function openLevels() {
+        // Unirse a la sala antes de ver niveles
+        const inputCode = document.getElementById('room-input').value.trim();
+        currentRoom = inputCode || "global"; // Si está vacío, usa sala global
+        socket.emit("join-room", currentRoom);
+        console.log("Uniéndose a sala: " + currentRoom);
+
         document.getElementById('menu-main').classList.add('hidden');
         document.getElementById('menu-levels').classList.remove('hidden');
     }
@@ -267,7 +302,6 @@
         document.getElementById('touch-layer').classList.toggle('hidden', !isMobile);
     }
 
-    // --- MOTOR DE AUDIO ---
     async function loadSong(url, diff) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') await audioCtx.resume();
@@ -275,73 +309,61 @@
         document.getElementById('menu-levels').classList.add('hidden');
         document.getElementById('menu-main').classList.add('hidden');
         
-        // Mostrar mensaje de carga si es necesario
-        // (Aquí simplemente esperamos la respuesta)
-        
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error("Error red");
             const arrayBuffer = await response.arrayBuffer();
             audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
             
-            // Configurar dificultad
             setDifficulty(diff);
-            generateNotes(); // Generar notas
+            generateNotes();
+            
+            // Resetear rival
+            rivalScore = 0;
+            document.getElementById('rival-display').innerText = "RIVAL: 0";
             
             startCountdown();
 
         } catch (e) {
-            alert("Error cargando la canción. Intenta de nuevo o revisa tu conexión.");
+            alert("Error cargando la canción.");
             showMain();
         }
     }
 
-    // Subida manual
     document.getElementById('audio-upload').onchange = async (e) => {
         if(!e.target.files[0]) return;
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
         const file = e.target.files[0];
         const arrayBuffer = await file.arrayBuffer();
         audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-        
         setDifficulty('medium');
         generateNotes();
         document.getElementById('menu-main').classList.add('hidden');
+        
+        // Unirse si subes tu propia música también
+        const inputCode = document.getElementById('room-input').value.trim();
+        currentRoom = inputCode || "global";
+        socket.emit("join-room", currentRoom);
+        
         startCountdown();
     };
 
     function setDifficulty(diff) {
         difficultyMode = diff;
-        if (diff === 'easy') {
-            noteSpeed = 500; 
-            noteShape = 'circle';
-        } else if (diff === 'medium') {
-            noteSpeed = 750; 
-            noteShape = 'rect';
-        } else if (diff === 'hard') {
-            noteSpeed = 1000; 
-            noteShape = 'diamond';
-        }
+        if (diff === 'easy') { noteSpeed = 500; noteShape = 'circle'; } 
+        else if (diff === 'medium') { noteSpeed = 750; noteShape = 'rect'; } 
+        else if (diff === 'hard') { noteSpeed = 1000; noteShape = 'diamond'; }
     }
 
     function generateNotes() {
         notes = [];
         const rawData = audioBuffer.getChannelData(0);
-        
-        // Ajustes de sensibilidad para asegurar que CAIGAN NOTAS
-        let threshold = 0.15; // Sensibilidad (más bajo = más notas)
-        let interval = 0.15;  // Tiempo mínimo entre notas
-        let sampleStep = 15;  // Resolución de escaneo
+        let threshold = 0.15;
+        let interval = 0.15;
+        let sampleStep = 15;
 
-        if (difficultyMode === 'hard') {
-            threshold = 0.08; // Muy sensible
-            interval = 0.10;  // Muy rápido
-            sampleStep = 20; 
-        } else if (difficultyMode === 'easy') {
-            threshold = 0.25;
-            interval = 0.35;
-        }
+        if (difficultyMode === 'hard') { threshold = 0.08; interval = 0.10; sampleStep = 20; } 
+        else if (difficultyMode === 'easy') { threshold = 0.25; interval = 0.35; }
 
         const step = Math.floor(audioBuffer.sampleRate / sampleStep);
 
@@ -349,22 +371,13 @@
             const val = Math.abs(rawData[i]);
             const prev = Math.abs(rawData[i-step]);
             
-            // Detectar pico de volumen
             if (val > threshold && val > prev * 1.05) {
                 const t = i / audioBuffer.sampleRate;
-                // Evitar notas encimadas
                 if (notes.length === 0 || t - notes[notes.length-1].time > interval) {
-                    notes.push({ 
-                        time: t, 
-                        lane: Math.floor(Math.random() * 4), 
-                        hit: false, 
-                        missed: false 
-                    });
+                    notes.push({ time: t, lane: Math.floor(Math.random() * 4), hit: false, missed: false });
                 }
             }
         }
-        
-        // Fallback: Si no se generaron notas (canción muy bajita), generar patrón aleatorio
         if (notes.length < 10) {
             for(let t=1; t<audioBuffer.duration; t+=0.5) {
                 notes.push({ time: t, lane: Math.floor(Math.random()*4), hit:false, missed:false });
@@ -372,7 +385,6 @@
         }
     }
 
-    // --- GAME LOOP ---
     function startCountdown() {
         const layer = document.getElementById('layer-countdown');
         const txt = document.getElementById('countdown-text');
@@ -405,13 +417,10 @@
         if(audioSource) audioSource.stop();
         audioSource = audioCtx.createBufferSource();
         audioSource.buffer = audioBuffer;
-        
         gainNode = audioCtx.createGain();
         gainNode.gain.value = globalVolume;
-        
         audioSource.connect(gainNode);
         gainNode.connect(audioCtx.destination);
-        
         audioSource.start(0, offset);
         startTime = audioCtx.currentTime - offset;
     }
@@ -432,28 +441,30 @@
         loop();
     }
 
-    // --- INPUT ---
     function handleHit(lane, e) {
-        if(e) e.preventDefault(); // Evitar zoom en celular
+        if(e) e.preventDefault();
         if(!isPlaying || isPaused) return;
 
-        laneFlashes[lane] = 1; // Efecto visual
-        
+        laneFlashes[lane] = 1;
         const now = audioCtx.currentTime - startTime;
-        // Ventana de hit (margen de error)
         let hitWindow = difficultyMode === 'hard' ? 0.2 : 0.3;
         
-        const note = notes.find(n => 
-            n.lane === lane && 
-            !n.hit && !n.missed && 
-            Math.abs(n.time - now) < hitWindow
-        );
+        const note = notes.find(n => n.lane === lane && !n.hit && !n.missed && Math.abs(n.time - now) < hitWindow);
 
         if(note) {
             note.hit = true;
             combo++;
             score += 100 + (combo * 10);
             showFeedback("PERFECT", currentTheme);
+            
+            // --- ENVIAR PUNTOS AL SERVIDOR ---
+            socket.emit("send-score", { 
+                roomId: currentRoom, 
+                score: score, 
+                combo: combo 
+            });
+            // ---------------------------------
+            
         } else {
             combo = 0;
             showFeedback("MISS", "#f00");
@@ -466,11 +477,9 @@
         el.innerText = text + (combo > 1 ? ` x${combo}` : "");
         el.style.color = col;
         el.style.opacity = 1;
-        // Pequeño timeout para fade out
         setTimeout(() => el.style.opacity = 0, 400);
     }
 
-    // Teclado
     window.addEventListener('keydown', (e) => {
         if(e.key === "Escape") { pauseGame(); return; }
         const k = e.key.toLowerCase();
@@ -479,29 +488,21 @@
         if(idx > -1) handleHit(idx);
     });
 
-    // --- RENDER ---
     function loop() {
         if(!isPlaying || isPaused) return;
-        
         const now = audioCtx.currentTime - startTime;
         
-        // Limpiar
         ctx.fillStyle = "#05010a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Dibujar Carriles
         for(let i=0; i<4; i++) {
             const x = i * LANE_WIDTH;
-            
-            // Flash de carril
             if(laneFlashes[i] > 0) {
                 ctx.fillStyle = currentTheme;
                 ctx.globalAlpha = laneFlashes[i] * 0.3;
                 ctx.fillRect(x, 0, LANE_WIDTH, canvas.height);
                 laneFlashes[i] -= 0.1;
             }
-            
-            // Línea divisoria
             ctx.globalAlpha = 0.2;
             ctx.strokeStyle = "#fff";
             ctx.lineWidth = 2;
@@ -509,58 +510,40 @@
         }
         ctx.globalAlpha = 1;
 
-        // HIT ZONE (Línea de golpe)
         ctx.strokeStyle = currentTheme;
         ctx.lineWidth = 4;
         ctx.strokeRect(0, HIT_LINE_Y - 40, canvas.width, 80);
 
-        // DIBUJAR NOTAS
         notes.forEach(n => {
             if(n.hit) return;
-            
             const y = HIT_LINE_Y - (n.time - now) * noteSpeed;
-            
-            // Miss
             if(y > canvas.height && !n.missed) {
                 n.missed = true;
                 combo = 0;
                 showFeedback("MISS", "#f00");
             }
-
-            // Visible
             if(y > -50 && y < canvas.height + 50) {
                 const x = n.lane * LANE_WIDTH + (LANE_WIDTH/2);
-                
                 ctx.fillStyle = "#fff";
                 ctx.shadowColor = currentTheme;
                 ctx.shadowBlur = 15;
 
-                // Formas
                 if(noteShape === 'circle') {
-                    ctx.beginPath();
-                    ctx.arc(x, y, 25, 0, Math.PI*2);
-                    ctx.fill();
-                } 
-                else if (noteShape === 'diamond') {
-                    ctx.save();
-                    ctx.translate(x, y);
-                    ctx.rotate(Math.PI/4);
-                    ctx.fillRect(-20, -20, 40, 40);
-                    ctx.restore();
-                } 
-                else {
-                    // Rectángulo
+                    ctx.beginPath(); ctx.arc(x, y, 25, 0, Math.PI*2); ctx.fill();
+                } else if (noteShape === 'diamond') {
+                    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI/4); ctx.fillRect(-20, -20, 40, 40); ctx.restore();
+                } else {
                     ctx.fillRect(x - 30, y - 20, 60, 40);
                 }
                 ctx.shadowBlur = 0;
             }
         });
 
-        // Fin del juego
         if(now > audioBuffer.duration + 1) {
             isPlaying = false;
             document.getElementById('hud').style.display = 'none';
             document.getElementById('final-score').innerText = score;
+            document.getElementById('final-rival-score').innerText = rivalScore; // Mostrar rival al final
             document.getElementById('layer-results').classList.remove('hidden');
         } else {
             animId = requestAnimationFrame(loop);
