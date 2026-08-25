@@ -42,7 +42,7 @@
             padding: 15px 30px; font-size: 1.1rem; background: rgba(255,255,255,0.05);
             color: var(--theme-color); border: 2px solid var(--theme-color);
             border-radius: 8px; cursor: pointer; text-transform: uppercase;
-            margin: 10px; min-width: 280px; font-weight: bold; transition: 0.2s;
+            margin: 8px; min-width: 280px; font-weight: bold; transition: 0.2s;
         }
         .btn:hover { background: var(--theme-color); color: #000; box-shadow: 0 0 25px var(--theme-color); }
         .btn:active { transform: scale(0.95); }
@@ -56,7 +56,7 @@
         #room-input::placeholder { color: rgba(255,255,255,0.5); }
 
         #color-palette {
-            display: flex; gap: 15px; margin-bottom: 30px;
+            display: flex; gap: 15px; margin-bottom: 20px;
             padding: 10px; background: rgba(255,255,255,0.1); border-radius: 20px;
         }
         .color-dot { 
@@ -146,7 +146,7 @@
             100% { transform: scale(1.03); text-shadow: 0 0 40px #ff0000, 0 0 70px #ff0000; }
         }
 
-        .volume-container { margin: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--theme-color); }
+        .volume-container { margin: 15px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--theme-color); font-weight: bold; }
         input[type=range] { width: 220px; height: 6px; cursor: pointer; accent-color: var(--theme-color); }
 
         #touch-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; z-index: 10; }
@@ -167,6 +167,7 @@
 
     <div id="signature">by sigindragon</div>
 
+    <!-- MENÚ PRINCIPAL -->
     <div id="menu-main" class="overlay">
         <h1>GOOPU LOOPU</h1>
         
@@ -178,9 +179,28 @@
         <button class="btn" onclick="document.getElementById('audio-upload').click()">SUBIR MI MÚSICA</button>
         <input type="file" id="audio-upload" accept="audio/*" class="hidden">
         
+        <button class="btn" onclick="openSettings()">CONFIGURACIÓN</button>
         <button class="btn" id="mode-toggle" onclick="toggleMode()">MODO: PC</button>
     </div>
 
+    <!-- MENÚ DE CONFIGURACIÓN -->
+    <div id="menu-settings" class="overlay hidden">
+        <h2 style="color:var(--theme-color); margin-bottom:20px;">CONFIGURACIÓN</h2>
+        
+        <div class="volume-container">
+            <label>VOLUMEN MENÚ</label>
+            <input type="range" id="menu-vol-slider" min="0" max="1" step="0.05" value="0.5">
+        </div>
+
+        <div class="volume-container">
+            <label>VOLUMEN JUEGO</label>
+            <input type="range" id="game-vol-slider" min="0" max="1" step="0.05" value="0.7">
+        </div>
+
+        <button class="btn" style="margin-top:25px; border-color:#fff; color:#fff;" onclick="showMain()">VOLVER</button>
+    </div>
+
+    <!-- MENÚ DE NIVELES -->
     <div id="menu-levels" class="overlay hidden">
         <h2 style="color:var(--theme-color); margin-bottom:20px;">SELECCIONA CANCIÓN</h2>
         <p style="font-size:0.8rem; color:#fff; margin-bottom:10px;">(Asegúrense de elegir la misma en multijugador)</p>
@@ -188,16 +208,18 @@
         <button class="btn" style="margin-top:20px; border-color:#fff; color:#fff;" onclick="showMain()">VOLVER</button>
     </div>
 
+    <!-- MENÚ DE PAUSA -->
     <div id="menu-pause" class="overlay hidden">
         <h1 style="font-size:4rem;">PAUSA</h1>
         <div class="volume-container">
-            <label>VOLUMEN</label>
-            <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.7">
+            <label>VOLUMEN JUEGO</label>
+            <input type="range" id="pause-vol-slider" min="0" max="1" step="0.05" value="0.7">
         </div>
         <button class="btn" onclick="resumeGame()">CONTINUAR</button>
         <button class="btn" style="border-color:#f33; color:#f33;" onclick="resetToMenu()">SALIR</button>
     </div>
 
+    <!-- RESULTADOS -->
     <div id="layer-results" class="overlay hidden">
         <h1 style="color:#fff;">¡TERMINADO!</h1>
         <div id="new-record-badge" class="hidden">★ ¡NUEVO RÉCORD PERSONAL! ★</div>
@@ -208,6 +230,7 @@
         <button class="btn" onclick="resetToMenu()">VOLVER AL MENÚ</button>
     </div>
 
+    <!-- PERDEDOR -->
     <div id="layer-defeat" class="overlay defeat-overlay hidden">
         <h1 class="glitch-loser">¡PERDEDOR!</h1>
         <div class="sub-loser">FAIL • 10 MISSES • INTÉNTALO DE NUEVO</div>
@@ -216,10 +239,12 @@
         <button class="btn" style="border-color:#ff0000; color:#ff0000; margin-top:20px;" onclick="resetToMenu()">REINTENTAR</button>
     </div>
 
+    <!-- CONTEO REGRESIVO -->
     <div id="layer-countdown" class="overlay hidden">
         <div id="countdown-text" style="font-size: 10rem; font-weight: 900; color: var(--theme-color); text-shadow: 0 0 50px var(--theme-color);">3</div>
     </div>
 
+    <!-- JUEGO Y CANVAS -->
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
         
@@ -264,16 +289,18 @@
         }
     });
 
+    // CANCIONES CON CONFIGURACIÓN DE PARÁMETROS DE RECONOCIMIENTO
     const levels = [
         { id: 1, name: "Camuflash", difficulty: "hard", bpm: 140, url: "https://files.catbox.moe/8kcoq7.mp3" },
         { id: 2, name: "Miau", difficulty: "medium", bpm: 125, url: "https://files.catbox.moe/3ymop1.mp3" },
-        { id: 3, name: "Passionfruit", difficulty: "easy", bpm: 118, url: "https://files.catbox.moe/3i0yh1.mp3" },
+        // CALIBRACIÓN DE PASSIONFRUIT: Umbral ajustado para detectar ritmos suaves/R&B adecuadamente
+        { id: 3, name: "Passionfruit", difficulty: "easy", bpm: 118, url: "https://files.catbox.moe/3i0yh1.mp3", threshold: 0.08, interval: 0.25, minStartTime: 0.2 },
         { id: 5, name: "Low Rider", difficulty: "hard", bpm: 135, url: "https://files.catbox.moe/f6bsw0.mp3" }
     ];
 
     const colors = ['#00ffff', '#ff0055', '#00ff66', '#aa00ff', '#ffcc00'];
     let currentTheme = colors[0];
-    let currentLevelId = null;
+    let currentLevel = null;
     
     let audioCtx, audioBuffer, audioSource, gainNode;
     let notes = [], score = 0, combo = 0;
@@ -284,7 +311,10 @@
     let startTime = 0, pauseTime = 0;
     let animId;
     let laneFlashes = [0,0,0,0];
-    let globalVolume = 0.7;
+
+    // VOLÚMENES CONFIGURABLES
+    let menuVolume = parseFloat(localStorage.getItem('goopu_menu_vol') ?? "0.5");
+    let gameVolume = parseFloat(localStorage.getItem('goopu_game_vol') ?? "0.7");
 
     let noteSpeed = 800;
     let noteShape = 'rect';
@@ -293,7 +323,7 @@
 
     let canvas, ctx, LANE_WIDTH, HIT_LINE_Y;
 
-    // --- MÚSICA DE FONDO DEL MENÚ (WEB AUDIO API LOOP SIN CORTE) ---
+    // AUDIO MENÚ (WEB AUDIO API LOOP PERFECCIONADO)
     let menuAudioBuffer = null;
     let menuSourceNode = null;
     let menuGainNode = null;
@@ -311,12 +341,28 @@
         }
         updateModeUI();
         initUI();
-        
-        document.getElementById('vol-slider').addEventListener('input', (e) => {
-            globalVolume = e.target.value;
-            if(gainNode) gainNode.gain.value = globalVolume;
-            if(menuGainNode) menuGainNode.gain.value = globalVolume * 0.5;
+
+        // Asignación de controles de volumen
+        document.getElementById('menu-vol-slider').value = menuVolume;
+        document.getElementById('game-vol-slider').value = gameVolume;
+        document.getElementById('pause-vol-slider').value = gameVolume;
+
+        document.getElementById('menu-vol-slider').addEventListener('input', (e) => {
+            menuVolume = parseFloat(e.target.value);
+            localStorage.setItem('goopu_menu_vol', menuVolume);
+            if(menuGainNode) menuGainNode.gain.value = menuVolume;
         });
+
+        const updateGameVol = (e) => {
+            gameVolume = parseFloat(e.target.value);
+            localStorage.setItem('goopu_game_vol', gameVolume);
+            document.getElementById('game-vol-slider').value = gameVolume;
+            document.getElementById('pause-vol-slider').value = gameVolume;
+            if(gainNode) gainNode.gain.value = gameVolume;
+        };
+
+        document.getElementById('game-vol-slider').addEventListener('input', updateGameVol);
+        document.getElementById('pause-vol-slider').addEventListener('input', updateGameVol);
 
         loadMenuMusic();
     };
@@ -325,14 +371,14 @@
         if (isMenuMusicLoading) return;
         isMenuMusicLoading = true;
         try {
-            // Carga de la canción "Ma quale idea"
-            const response = await fetch("https://files.catbox.moe/8y8m9j.mp3"); 
+            // URL Directa proporcionada
+            const response = await fetch("https://file.garden/ao3ypUaNA0DykT1U/makuale.mp3"); 
             const arrayBuf = await response.arrayBuffer();
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             menuAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
             if (!isPlaying) startMenuMusic();
         } catch(e) {
-            console.log("Cargando música de menú...");
+            console.log("Cargando música del menú...");
         }
     }
 
@@ -349,10 +395,10 @@
         try {
             menuSourceNode = audioCtx.createBufferSource();
             menuSourceNode.buffer = menuAudioBuffer;
-            menuSourceNode.loop = true; // Bucle continuo sin corte perceptible de muestras
+            menuSourceNode.loop = true; // Bucle continuo limpio
             
             menuGainNode = audioCtx.createGain();
-            menuGainNode.gain.value = globalVolume * 0.5;
+            menuGainNode.gain.value = menuVolume;
             
             menuSourceNode.connect(menuGainNode);
             menuGainNode.connect(audioCtx.destination);
@@ -392,7 +438,6 @@
         renderLevelsList();
     }
 
-    // RENDIRIZADO Y MUESTRA DEL RÉCORD PERSONAL GUARDADO
     function renderLevelsList() {
         const list = document.getElementById('levels-list');
         list.innerHTML = '';
@@ -416,16 +461,28 @@
                 <span class="diff-tag" style="background:${color}">${lvl.difficulty}</span>
             `;
             d.onclick = () => {
-                currentLevelId = lvl.id;
+                currentLevel = lvl;
                 loadSong(lvl.url, lvl.difficulty, lvl.bpm);
             };
             list.appendChild(d);
         });
     }
 
-    function showMain() {
+    function hideAllOverlays() {
+        document.getElementById('menu-main').classList.add('hidden');
         document.getElementById('menu-levels').classList.add('hidden');
+        document.getElementById('menu-settings').classList.add('hidden');
+        document.getElementById('menu-pause').classList.add('hidden');
+    }
+
+    function showMain() {
+        hideAllOverlays();
         document.getElementById('menu-main').classList.remove('hidden');
+    }
+
+    function openSettings() {
+        hideAllOverlays();
+        document.getElementById('menu-settings').classList.remove('hidden');
     }
 
     function openLevels() {
@@ -443,7 +500,7 @@
         }
 
         renderLevelsList();
-        document.getElementById('menu-main').classList.add('hidden');
+        hideAllOverlays();
         document.getElementById('menu-levels').classList.remove('hidden');
     }
 
@@ -464,8 +521,7 @@
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-        document.getElementById('menu-levels').classList.add('hidden');
-        document.getElementById('menu-main').classList.add('hidden');
+        hideAllOverlays();
         
         try {
             const response = await fetch(url);
@@ -491,7 +547,7 @@
         if(!e.target.files[0]) return;
         
         stopMenuMusic();
-        currentLevelId = null; // Audio local, no guarda récord persistente de lista
+        currentLevel = null;
         alert("⚠️ AVISO: La creación de niveles personalizados con audios locales es realizada con IA/algoritmos. Es posible que las notas no estén sincronizadas al 100%.");
 
         currentBPM = 125;
@@ -502,7 +558,7 @@
         
         setDifficulty('medium');
         generateNotes();
-        document.getElementById('menu-main').classList.add('hidden');
+        hideAllOverlays();
         
         const inputCode = document.getElementById('room-input').value.trim();
         if(inputCode !== "") {
@@ -527,18 +583,27 @@
         else if (diff === 'hard') { noteSpeed = 1000; noteShape = 'diamond'; }
     }
 
+    // GENERACIÓN DE NOTAS CON SOPORTE DE SOBRESCRITURA INDIVIDUAL POR NIVEL
     function generateNotes() {
         notes = [];
         const rawData = audioBuffer.getChannelData(0);
+
         let threshold = 0.15;
         let interval = 0.18;
         let sampleStep = 15;
+        let minStartTime = 1.8;
 
         if (difficultyMode === 'hard') { threshold = 0.08; interval = 0.12; sampleStep = 20; } 
-        else if (difficultyMode === 'easy') { threshold = 0.25; interval = 0.35; }
+        else if (difficultyMode === 'easy') { threshold = 0.15; interval = 0.30; }
+
+        // Parámetros específicos del nivel si existen (para corregir desfase en canciones suaves)
+        if (currentLevel) {
+            if (currentLevel.threshold !== undefined) threshold = currentLevel.threshold;
+            if (currentLevel.interval !== undefined) interval = currentLevel.interval;
+            if (currentLevel.minStartTime !== undefined) minStartTime = currentLevel.minStartTime;
+        }
 
         const step = Math.floor(audioBuffer.sampleRate / sampleStep);
-        const minStartTime = 1.8; 
 
         for (let i = step; i < rawData.length; i += step) {
             const val = Math.abs(rawData[i]);
@@ -596,7 +661,7 @@
         audioSource = audioCtx.createBufferSource();
         audioSource.buffer = audioBuffer;
         gainNode = audioCtx.createGain();
-        gainNode.gain.value = globalVolume;
+        gainNode.gain.value = gameVolume;
         audioSource.connect(gainNode);
         gainNode.connect(audioCtx.destination);
         audioSource.start(0, offset);
@@ -628,15 +693,12 @@
         document.getElementById('hud').style.display = 'none';
         document.getElementById('layer-results').classList.add('hidden');
         document.getElementById('layer-defeat').classList.add('hidden');
-        document.getElementById('menu-pause').classList.add('hidden');
-        document.getElementById('menu-levels').classList.add('hidden');
-        document.getElementById('menu-main').classList.remove('hidden');
         
+        showMain();
         updateModeUI();
         startMenuMusic();
     }
 
-    // --- MANEJO DE HIT E INDICADOR DE PRECISIÓN (EARLY / PERFECT / LATE) ---
     function handleHit(lane, e) {
         if(e) e.preventDefault();
         if(!isPlaying || isPaused) return;
@@ -653,8 +715,7 @@
             hitsCount++;
             score += 100 + (combo * 10);
             
-            // Cálculo del desfase de precisión
-            const diff = note.time - now; // Positivo: presionado antes (EARLY), Negativo: después (LATE)
+            const diff = note.time - now;
             let feedbackText = "PERFECT";
             let feedbackColor = currentTheme;
 
@@ -663,10 +724,10 @@
                 feedbackColor = currentTheme;
             } else if (diff > 0.07) {
                 feedbackText = "EARLY";
-                feedbackColor = "#ffcc00"; // Amarillo para anticipado
+                feedbackColor = "#ffcc00";
             } else {
                 feedbackText = "LATE";
-                feedbackColor = "#ff6600"; // Naranja para tardío
+                feedbackColor = "#ff6600";
             }
 
             showFeedback(feedbackText, feedbackColor);
@@ -830,11 +891,10 @@
             document.getElementById('final-misses').innerText = missesCount;
             document.getElementById('final-rival-score').innerText = rivalScore;
 
-            // COMPROBAR Y GUARDAR NUEVO RÉCORD PERSONAL
-            if (currentLevelId) {
-                const oldRecord = parseInt(localStorage.getItem(`goopu_hs_${currentLevelId}`) || "0");
+            if (currentLevel) {
+                const oldRecord = parseInt(localStorage.getItem(`goopu_hs_${currentLevel.id}`) || "0");
                 if (score > oldRecord) {
-                    localStorage.setItem(`goopu_hs_${currentLevelId}`, score);
+                    localStorage.setItem(`goopu_hs_${currentLevel.id}`, score);
                     document.getElementById('new-record-badge').classList.remove('hidden');
                 }
             }
