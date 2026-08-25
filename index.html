@@ -289,12 +289,12 @@
         }
     });
 
-    // CANCIONES CON CONFIGURACIÓN DE PARÁMETROS DE RECONOCIMIENTO
+    // CANCIONES CON CONFIGURACIÓN DE PARÁMETROS Y TEMPO GRID
     const levels = [
         { id: 1, name: "Camuflash", difficulty: "hard", bpm: 140, url: "https://files.catbox.moe/8kcoq7.mp3" },
         { id: 2, name: "Miau", difficulty: "medium", bpm: 125, url: "https://files.catbox.moe/3ymop1.mp3" },
-        // CALIBRACIÓN DE PASSIONFRUIT: Umbral ajustado para detectar ritmos suaves/R&B adecuadamente
-        { id: 3, name: "Passionfruit", difficulty: "easy", bpm: 118, url: "https://files.catbox.moe/3i0yh1.mp3", threshold: 0.08, interval: 0.25, minStartTime: 0.2 },
+        // PASSIONFRUIT: Usa rejilla matemática basada en pulso (beatGrid) para sincronización perfecta
+        { id: 3, name: "Passionfruit", difficulty: "easy", bpm: 118, url: "https://files.catbox.moe/3i0yh1.mp3", beatGrid: true, offset: 0.65 },
         { id: 5, name: "Low Rider", difficulty: "hard", bpm: 135, url: "https://files.catbox.moe/f6bsw0.mp3" }
     ];
 
@@ -323,7 +323,7 @@
 
     let canvas, ctx, LANE_WIDTH, HIT_LINE_Y;
 
-    // AUDIO MENÚ (WEB AUDIO API LOOP PERFECCIONADO)
+    // AUDIO MENÚ
     let menuAudioBuffer = null;
     let menuSourceNode = null;
     let menuGainNode = null;
@@ -342,7 +342,6 @@
         updateModeUI();
         initUI();
 
-        // Asignación de controles de volumen
         document.getElementById('menu-vol-slider').value = menuVolume;
         document.getElementById('game-vol-slider').value = gameVolume;
         document.getElementById('pause-vol-slider').value = gameVolume;
@@ -371,7 +370,6 @@
         if (isMenuMusicLoading) return;
         isMenuMusicLoading = true;
         try {
-            // URL Directa proporcionada
             const response = await fetch("https://file.garden/ao3ypUaNA0DykT1U/makuale.mp3"); 
             const arrayBuf = await response.arrayBuffer();
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -383,9 +381,18 @@
     }
 
     function tryPlayMenuMusic() {
+        // Si hay una partida en curso o en pausa, NUNCA reproducir música del menú
+        if (isPlaying || isPaused) return;
+
+        const isInMenu = !document.getElementById('menu-main').classList.contains('hidden') ||
+                         !document.getElementById('menu-levels').classList.contains('hidden') ||
+                         !document.getElementById('menu-settings').classList.contains('hidden');
+        
+        if (!isInMenu) return;
+
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        if (!isPlaying && menuAudioBuffer && !menuSourceNode) {
+        if (menuAudioBuffer && !menuSourceNode) {
             startMenuMusic();
         }
     }
@@ -395,7 +402,7 @@
         try {
             menuSourceNode = audioCtx.createBufferSource();
             menuSourceNode.buffer = menuAudioBuffer;
-            menuSourceNode.loop = true; // Bucle continuo limpio
+            menuSourceNode.loop = true;
             
             menuGainNode = audioCtx.createGain();
             menuGainNode.gain.value = menuVolume;
@@ -408,7 +415,10 @@
 
     function stopMenuMusic() {
         if (menuSourceNode) {
-            try { menuSourceNode.stop(); } catch(e){}
+            try { 
+                menuSourceNode.stop(); 
+                menuSourceNode.disconnect();
+            } catch(e){}
             menuSourceNode = null;
         }
     }
@@ -478,6 +488,7 @@
     function showMain() {
         hideAllOverlays();
         document.getElementById('menu-main').classList.remove('hidden');
+        tryPlayMenuMusic();
     }
 
     function openSettings() {
@@ -548,7 +559,6 @@
         
         stopMenuMusic();
         currentLevel = null;
-        alert("⚠️ AVISO: La creación de niveles personalizados con audios locales es realizada con IA/algoritmos. Es posible que las notas no estén sincronizadas al 100%.");
 
         currentBPM = 125;
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -583,9 +593,29 @@
         else if (diff === 'hard') { noteSpeed = 1000; noteShape = 'diamond'; }
     }
 
-    // GENERACIÓN DE NOTAS CON SOPORTE DE SOBRESCRITURA INDIVIDUAL POR NIVEL
+    // GENERACIÓN DE NOTAS (CON BEAT GRID Y DETECTOR DE ANÁLISIS)
     function generateNotes() {
         notes = [];
+
+        // Modo BPM Grid para canciones sincronizadas al 100% por compás
+        if (currentLevel && currentLevel.beatGrid) {
+            const secondsPerBeat = 60 / currentLevel.bpm;
+            const offset = currentLevel.offset || 0;
+            const duration = audioBuffer.duration;
+            const step = (difficultyMode === 'easy') ? secondsPerBeat : (secondsPerBeat / 2);
+
+            for (let t = offset; t < duration - 1.5; t += step) {
+                notes.push({ 
+                    time: t, 
+                    lane: Math.floor(Math.random() * 4), 
+                    hit: false, 
+                    missed: false 
+                });
+            }
+            return;
+        }
+
+        // Detector de picos para otros niveles o audios personalizados
         const rawData = audioBuffer.getChannelData(0);
 
         let threshold = 0.15;
@@ -595,13 +625,6 @@
 
         if (difficultyMode === 'hard') { threshold = 0.08; interval = 0.12; sampleStep = 20; } 
         else if (difficultyMode === 'easy') { threshold = 0.15; interval = 0.30; }
-
-        // Parámetros específicos del nivel si existen (para corregir desfase en canciones suaves)
-        if (currentLevel) {
-            if (currentLevel.threshold !== undefined) threshold = currentLevel.threshold;
-            if (currentLevel.interval !== undefined) interval = currentLevel.interval;
-            if (currentLevel.minStartTime !== undefined) minStartTime = currentLevel.minStartTime;
-        }
 
         const step = Math.floor(audioBuffer.sampleRate / sampleStep);
 
@@ -626,6 +649,7 @@
     }
 
     function startCountdown() {
+        stopMenuMusic();
         const layer = document.getElementById('layer-countdown');
         const txt = document.getElementById('countdown-text');
         layer.classList.remove('hidden');
@@ -645,6 +669,7 @@
     }
 
     function startGame() {
+        stopMenuMusic();
         score = 0; combo = 0; hitsCount = 0; missesCount = 0; 
         isPlaying = true; isPaused = false;
         document.getElementById('hud').style.display = 'block';
