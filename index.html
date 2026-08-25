@@ -102,7 +102,6 @@
             text-shadow: 0 0 5px #ff0000;
         }
 
-        /* BARRA DE PROGRESO DE TIEMPO */
         #progress-container {
             position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
             width: 45%; height: 10px; background: rgba(255, 255, 255, 0.2);
@@ -117,26 +116,34 @@
             font-size: 0.75rem; color: #fff; text-shadow: 0 0 5px #000;
         }
 
-        #combo-text { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); font-size: 4rem; font-weight: 900; opacity: 0; transition: opacity 0.15s; text-align: center; width: 100%; }
+        #combo-text { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); font-size: 3.5rem; font-weight: 900; opacity: 0; transition: opacity 0.15s; text-align: center; width: 100%; }
 
-        /* PANTALLA DE DERROTA FUTURE FUNK STYLE */
         .defeat-overlay {
             background: rgba(25, 0, 0, 0.96) !important;
             border: 4px solid #ff0000;
+            box-sizing: border-box;
+            padding: 20px;
         }
         .glitch-loser {
-            color: #ff0000; font-size: 4.5rem; font-weight: 900;
+            color: #ff0000; 
+            font-size: clamp(2.2rem, 9vw, 4.2rem);
+            font-weight: 900;
             text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000;
             animation: pulseRed 0.3s infinite alternate;
-            margin: 0; letter-spacing: 5px;
+            margin: 0; 
+            letter-spacing: 2px;
+            white-space: nowrap;
+            max-width: 95%;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .sub-loser {
-            color: #ff3333; font-size: 1.2rem; margin: 15px 0 25px 0;
-            letter-spacing: 3px; font-weight: bold; text-transform: uppercase;
+            color: #ff3333; font-size: 1rem; margin: 15px 0 25px 0;
+            letter-spacing: 2px; font-weight: bold; text-transform: uppercase;
         }
         @keyframes pulseRed {
             0% { transform: scale(1); text-shadow: 0 0 20px #ff0000; }
-            100% { transform: scale(1.05); text-shadow: 0 0 50px #ff0000, 0 0 80px #ff0000; }
+            100% { transform: scale(1.03); text-shadow: 0 0 40px #ff0000, 0 0 70px #ff0000; }
         }
 
         .volume-container { margin: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--theme-color); }
@@ -144,9 +151,19 @@
 
         #touch-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; z-index: 10; }
         .touch-lane { flex: 1; height: 100%; }
+
+        #new-record-badge {
+            color: #ffcc00; font-size: 1.4rem; font-weight: 900;
+            text-shadow: 0 0 10px #ffcc00; margin: 10px 0;
+            animation: pulseYellow 0.4s infinite alternate;
+        }
+        @keyframes pulseYellow {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
     </style>
 </head>
-<body>
+<body onclick="tryPlayMenuMusic()">
 
     <div id="signature">by sigindragon</div>
 
@@ -178,26 +195,25 @@
             <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.7">
         </div>
         <button class="btn" onclick="resumeGame()">CONTINUAR</button>
-        <button class="btn" style="border-color:#f33; color:#f33;" onclick="location.reload()">SALIR</button>
+        <button class="btn" style="border-color:#f33; color:#f33;" onclick="resetToMenu()">SALIR</button>
     </div>
 
-    <!-- PANTALLA DE RESULTADOS (VICTORIA) -->
     <div id="layer-results" class="overlay hidden">
         <h1 style="color:#fff;">¡TERMINADO!</h1>
+        <div id="new-record-badge" class="hidden">★ ¡NUEVO RÉCORD PERSONAL! ★</div>
         <div style="font-size: 2.2rem; margin: 10px 0;">SCORE: <span id="final-score" style="color:var(--theme-color)">0</span></div>
         <div style="font-size: 1.2rem; color:#00ff66; margin: 5px 0;">NOTAS ACERTADAS: <span id="final-hits">0</span></div>
         <div style="font-size: 1.2rem; color:#ff3333; margin: 5px 0;">MISSES: <span id="final-misses">0</span></div>
         <div id="final-rival-container" style="font-size: 1.4rem; margin: 15px 0; color:#ff3333;" class="hidden">RIVAL: <span id="final-rival-score">0</span></div>
-        <button class="btn" onclick="location.reload()">VOLVER AL MENÚ</button>
+        <button class="btn" onclick="resetToMenu()">VOLVER AL MENÚ</button>
     </div>
 
-    <!-- PANTALLA DE DERROTA (FUTURE FUNK STYLE) -->
     <div id="layer-defeat" class="overlay defeat-overlay hidden">
         <h1 class="glitch-loser">¡PERDEDOR!</h1>
         <div class="sub-loser">FAIL • 10 MISSES • INTÉNTALO DE NUEVO</div>
         <div style="font-size: 1.2rem; color:#fff; margin: 5px 0;">NOTAS ACERTADAS: <span id="defeat-hits">0</span></div>
         <div style="font-size: 1.2rem; color:#ff3333; margin: 5px 0;">MISSES TOTALES: <span id="defeat-misses">10</span></div>
-        <button class="btn" style="border-color:#ff0000; color:#ff0000; margin-top:20px;" onclick="location.reload()">REINTENTAR</button>
+        <button class="btn" style="border-color:#ff0000; color:#ff0000; margin-top:20px;" onclick="resetToMenu()">REINTENTAR</button>
     </div>
 
     <div id="layer-countdown" class="overlay hidden">
@@ -248,21 +264,21 @@
         }
     });
 
-    // 1. SE ELIMINÓ "ORULA" DE LA LISTA DE CANCIONES
     const levels = [
-        { id: 1, name: "Camuflash", difficulty: "hard", url: "https://files.catbox.moe/8kcoq7.mp3" },
-        { id: 2, name: "Miau", difficulty: "medium", url: "https://files.catbox.moe/3ymop1.mp3" },
-        { id: 3, name: "Passionfruit", difficulty: "easy", url: "https://files.catbox.moe/3i0yh1.mp3" },
-        { id: 5, name: "Low Rider", difficulty: "hard", url: "https://files.catbox.moe/f6bsw0.mp3" }
+        { id: 1, name: "Camuflash", difficulty: "hard", bpm: 140, url: "https://files.catbox.moe/8kcoq7.mp3" },
+        { id: 2, name: "Miau", difficulty: "medium", bpm: 125, url: "https://files.catbox.moe/3ymop1.mp3" },
+        { id: 3, name: "Passionfruit", difficulty: "easy", bpm: 118, url: "https://files.catbox.moe/3i0yh1.mp3" },
+        { id: 5, name: "Low Rider", difficulty: "hard", bpm: 135, url: "https://files.catbox.moe/f6bsw0.mp3" }
     ];
 
     const colors = ['#00ffff', '#ff0055', '#00ff66', '#aa00ff', '#ffcc00'];
     let currentTheme = colors[0];
+    let currentLevelId = null;
     
     let audioCtx, audioBuffer, audioSource, gainNode;
     let notes = [], score = 0, combo = 0;
-    let hitsCount = 0, missesCount = 0; // 8. CONTEO DE NOTAS Y MISSES
-    const MAX_MISSES = 10; // 2. LÍMITE DE 10 MISSES
+    let hitsCount = 0, missesCount = 0;
+    const MAX_MISSES = 10;
 
     let isPlaying = false, isPaused = false, isMobile = false;
     let startTime = 0, pauseTime = 0;
@@ -273,8 +289,15 @@
     let noteSpeed = 800;
     let noteShape = 'rect';
     let difficultyMode = 'medium';
+    let currentBPM = 128;
 
     let canvas, ctx, LANE_WIDTH, HIT_LINE_Y;
+
+    // --- MÚSICA DE FONDO DEL MENÚ (WEB AUDIO API LOOP SIN CORTE) ---
+    let menuAudioBuffer = null;
+    let menuSourceNode = null;
+    let menuGainNode = null;
+    let isMenuMusicLoading = false;
 
     window.onload = () => {
         canvas = document.getElementById('gameCanvas');
@@ -282,13 +305,67 @@
         resize();
         window.addEventListener('resize', resize);
         
+        const savedMode = localStorage.getItem('goopu_mode');
+        if (savedMode === 'mobile') {
+            isMobile = true;
+        }
+        updateModeUI();
         initUI();
         
         document.getElementById('vol-slider').addEventListener('input', (e) => {
             globalVolume = e.target.value;
             if(gainNode) gainNode.gain.value = globalVolume;
+            if(menuGainNode) menuGainNode.gain.value = globalVolume * 0.5;
         });
+
+        loadMenuMusic();
     };
+
+    async function loadMenuMusic() {
+        if (isMenuMusicLoading) return;
+        isMenuMusicLoading = true;
+        try {
+            // Carga de la canción "Ma quale idea"
+            const response = await fetch("https://files.catbox.moe/8y8m9j.mp3"); 
+            const arrayBuf = await response.arrayBuffer();
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            menuAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+            if (!isPlaying) startMenuMusic();
+        } catch(e) {
+            console.log("Cargando música de menú...");
+        }
+    }
+
+    function tryPlayMenuMusic() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (!isPlaying && menuAudioBuffer && !menuSourceNode) {
+            startMenuMusic();
+        }
+    }
+
+    function startMenuMusic() {
+        if (!menuAudioBuffer || isPlaying || menuSourceNode) return;
+        try {
+            menuSourceNode = audioCtx.createBufferSource();
+            menuSourceNode.buffer = menuAudioBuffer;
+            menuSourceNode.loop = true; // Bucle continuo sin corte perceptible de muestras
+            
+            menuGainNode = audioCtx.createGain();
+            menuGainNode.gain.value = globalVolume * 0.5;
+            
+            menuSourceNode.connect(menuGainNode);
+            menuGainNode.connect(audioCtx.destination);
+            menuSourceNode.start(0);
+        } catch(e){}
+    }
+
+    function stopMenuMusic() {
+        if (menuSourceNode) {
+            try { menuSourceNode.stop(); } catch(e){}
+            menuSourceNode = null;
+        }
+    }
 
     function resize() {
         const cont = document.getElementById('game-container');
@@ -312,6 +389,11 @@
             pal.appendChild(d);
         });
 
+        renderLevelsList();
+    }
+
+    // RENDIRIZADO Y MUESTRA DEL RÉCORD PERSONAL GUARDADO
+    function renderLevelsList() {
         const list = document.getElementById('levels-list');
         list.innerHTML = '';
         levels.forEach(lvl => {
@@ -322,11 +404,21 @@
             if(lvl.difficulty === 'medium') color = '#fb0';
             if(lvl.difficulty === 'hard') color = '#f00';
 
+            const record = localStorage.getItem(`goopu_hs_${lvl.id}`) || 0;
+
             d.innerHTML = `
-                <span>${lvl.name}</span>
+                <div>
+                    <div style="font-weight:bold;">${lvl.name}</div>
+                    <div style="font-size:0.75rem; color:#aaa; margin-top:3px;">
+                        RÉCORD: <span style="color:var(--theme-color); font-weight:bold;">${Number(record).toLocaleString()} PTS</span>
+                    </div>
+                </div>
                 <span class="diff-tag" style="background:${color}">${lvl.difficulty}</span>
             `;
-            d.onclick = () => loadSong(lvl.url, lvl.difficulty);
+            d.onclick = () => {
+                currentLevelId = lvl.id;
+                loadSong(lvl.url, lvl.difficulty, lvl.bpm);
+            };
             list.appendChild(d);
         });
     }
@@ -338,7 +430,6 @@
 
     function openLevels() {
         const inputCode = document.getElementById('room-input').value.trim();
-        // 7. OCULTAR RIVAL SI NO HAY MULTIJUGADOR (CÓDIGO DE SALA)
         if(inputCode !== "") {
             isMultiplayer = true;
             currentRoom = inputCode;
@@ -351,17 +442,25 @@
             document.getElementById('final-rival-container').classList.add('hidden');
         }
 
+        renderLevelsList();
         document.getElementById('menu-main').classList.add('hidden');
         document.getElementById('menu-levels').classList.remove('hidden');
     }
 
     function toggleMode() {
         isMobile = !isMobile;
+        localStorage.setItem('goopu_mode', isMobile ? 'mobile' : 'pc');
+        updateModeUI();
+    }
+
+    function updateModeUI() {
         document.getElementById('mode-toggle').innerText = isMobile ? "MODO: CELULAR" : "MODO: PC";
         document.getElementById('touch-layer').classList.toggle('hidden', !isMobile);
     }
 
-    async function loadSong(url, diff) {
+    async function loadSong(url, diff, bpm = 128) {
+        stopMenuMusic();
+        currentBPM = bpm;
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') await audioCtx.resume();
 
@@ -384,16 +483,18 @@
 
         } catch (e) {
             alert("Error cargando la canción.");
-            showMain();
+            resetToMenu();
         }
     }
 
-    // 6. AVISO DE CREACIÓN CON IA AL SUBIR MÚSICA LOCAL
     document.getElementById('audio-upload').onchange = async (e) => {
         if(!e.target.files[0]) return;
         
-        alert("⚠️ AVISO: La creación de niveles personalizados con audios locales es realizada con algoritmos de IA/frecuencia. Es posible que las notas y la canción no estén sincronizadas al 100%.");
+        stopMenuMusic();
+        currentLevelId = null; // Audio local, no guarda récord persistente de lista
+        alert("⚠️ AVISO: La creación de niveles personalizados con audios locales es realizada con IA/algoritmos. Es posible que las notas no estén sincronizadas al 100%.");
 
+        currentBPM = 125;
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const file = e.target.files[0];
         const arrayBuffer = await file.arrayBuffer();
@@ -426,7 +527,6 @@
         else if (diff === 'hard') { noteSpeed = 1000; noteShape = 'diamond'; }
     }
 
-    // 5. SINCRONIZACIÓN MEJORADA Y CORRECCIÓN Nivel MIAU (PUNTO 2 DE TU LISTA)
     function generateNotes() {
         notes = [];
         const rawData = audioBuffer.getChannelData(0);
@@ -438,8 +538,6 @@
         else if (difficultyMode === 'easy') { threshold = 0.25; interval = 0.35; }
 
         const step = Math.floor(audioBuffer.sampleRate / sampleStep);
-
-        // CORRECCIÓN MIAU/INICIO: Ignorar los primeros 1.8 segundos para evitar que la nota aparezca pegada abajo sin reaccionar
         const minStartTime = 1.8; 
 
         for (let i = step; i < rawData.length; i += step) {
@@ -448,7 +546,7 @@
             
             if (val > threshold && val > prev * 1.05) {
                 const t = i / audioBuffer.sampleRate;
-                if (t >= minStartTime) { // Solo agregar notas después del margen inicial
+                if (t >= minStartTime) {
                     if (notes.length === 0 || t - notes[notes.length-1].time > interval) {
                         notes.push({ time: t, lane: Math.floor(Math.random() * 4), hit: false, missed: false });
                     }
@@ -487,6 +585,7 @@
         document.getElementById('hud').style.display = 'block';
         document.getElementById('score-display').innerText = 0;
         document.getElementById('progress-bar-fill').style.width = "0%";
+        document.getElementById('new-record-badge').classList.add('hidden');
         
         playAudioSource(0);
         loop();
@@ -508,7 +607,7 @@
         if(!isPlaying || isPaused) return;
         isPaused = true;
         pauseTime = audioCtx.currentTime - startTime;
-        audioSource.stop();
+        if(audioSource) audioSource.stop();
         cancelAnimationFrame(animId);
         document.getElementById('menu-pause').classList.remove('hidden');
     }
@@ -520,6 +619,24 @@
         loop();
     }
 
+    function resetToMenu() {
+        isPlaying = false;
+        isPaused = false;
+        if(audioSource) audioSource.stop();
+        cancelAnimationFrame(animId);
+
+        document.getElementById('hud').style.display = 'none';
+        document.getElementById('layer-results').classList.add('hidden');
+        document.getElementById('layer-defeat').classList.add('hidden');
+        document.getElementById('menu-pause').classList.add('hidden');
+        document.getElementById('menu-levels').classList.add('hidden');
+        document.getElementById('menu-main').classList.remove('hidden');
+        
+        updateModeUI();
+        startMenuMusic();
+    }
+
+    // --- MANEJO DE HIT E INDICADOR DE PRECISIÓN (EARLY / PERFECT / LATE) ---
     function handleHit(lane, e) {
         if(e) e.preventDefault();
         if(!isPlaying || isPaused) return;
@@ -535,7 +652,24 @@
             combo++;
             hitsCount++;
             score += 100 + (combo * 10);
-            showFeedback("PERFECT", currentTheme);
+            
+            // Cálculo del desfase de precisión
+            const diff = note.time - now; // Positivo: presionado antes (EARLY), Negativo: después (LATE)
+            let feedbackText = "PERFECT";
+            let feedbackColor = currentTheme;
+
+            if (Math.abs(diff) <= 0.07) {
+                feedbackText = "PERFECT";
+                feedbackColor = currentTheme;
+            } else if (diff > 0.07) {
+                feedbackText = "EARLY";
+                feedbackColor = "#ffcc00"; // Amarillo para anticipado
+            } else {
+                feedbackText = "LATE";
+                feedbackColor = "#ff6600"; // Naranja para tardío
+            }
+
+            showFeedback(feedbackText, feedbackColor);
             
             if(isMultiplayer) {
                 socket.emit("send-score", { 
@@ -551,20 +685,17 @@
         document.getElementById('score-display').innerText = score;
     }
 
-    // 3. RESTAR PUNTOS Y CONTAR MISSES
     function registerMiss() {
         combo = 0;
         missesCount++;
-        score = Math.max(0, score - 50); // Resta 50 puntos por miss (mínimo 0)
+        score = Math.max(0, score - 50);
         showFeedback("MISS", "#f00");
 
-        // 2. COMPROBAR SI PERDIÓ POR 10 MISSES
         if(missesCount >= MAX_MISSES) {
             triggerGameOver();
         }
     }
 
-    // PANTALLA DE DERROTA POR 10 MISSES
     function triggerGameOver() {
         isPlaying = false;
         if(audioSource) audioSource.stop();
@@ -592,32 +723,67 @@
         if(idx > -1) handleHit(idx);
     });
 
-    // FORMATO TIEMPO MM:SS
     function formatTime(sec) {
         const m = Math.floor(sec / 60);
         const s = Math.floor(sec % 60).toString().padStart(2, '0');
         return `${m}:${s}`;
     }
 
+    function drawDynamicBackground(now) {
+        ctx.fillStyle = "#05010a";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const bps = currentBPM / 60;
+        const beatProgress = (now * bps) % 1;
+        const pulse = Math.pow(1 - beatProgress, 3);
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const maxRadius = Math.max(canvas.width, canvas.height) * 0.7;
+        const currentRadius = maxRadius * (0.3 + pulse * 0.25);
+
+        const gradient = ctx.createRadialGradient(centerX, centerY, 5, centerX, centerY, currentRadius);
+        gradient.addColorStop(0, currentTheme);
+        gradient.addColorStop(1, "rgba(5, 1, 10, 0)");
+
+        ctx.globalAlpha = 0.15 + (pulse * 0.25);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = currentTheme;
+        ctx.lineWidth = 1;
+        const lineCount = 12;
+        const spacing = canvas.height / lineCount;
+        const offset = (now * 50) % spacing;
+
+        for (let i = 0; i < lineCount + 1; i++) {
+            const y = (i * spacing) - offset;
+            ctx.globalAlpha = 0.05 + (pulse * 0.1);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+    }
+
     function loop() {
         if(!isPlaying || isPaused) return;
         const now = audioCtx.currentTime - startTime;
         
-        // 9. ACTUALIZAR BARRA DE PROGRESO DE TIEMPO EN TIEMPO REAL
+        drawDynamicBackground(now);
+
         if(audioBuffer && audioBuffer.duration) {
             const progressPct = Math.min(100, (now / audioBuffer.duration) * 100);
             document.getElementById('progress-bar-fill').style.width = progressPct + "%";
             document.getElementById('time-display').innerText = `${formatTime(now)} / ${formatTime(audioBuffer.duration)}`;
         }
 
-        ctx.fillStyle = "#05010a";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
         for(let i=0; i<4; i++) {
             const x = i * LANE_WIDTH;
             if(laneFlashes[i] > 0) {
                 ctx.fillStyle = currentTheme;
-                ctx.globalAlpha = laneFlashes[i] * 0.3;
+                ctx.globalAlpha = laneFlashes[i] * 0.35;
                 ctx.fillRect(x, 0, LANE_WIDTH, canvas.height);
                 laneFlashes[i] -= 0.1;
             }
@@ -660,10 +826,19 @@
             isPlaying = false;
             document.getElementById('hud').style.display = 'none';
             document.getElementById('final-score').innerText = score;
-            // 8. MOSTRAR HITS Y MISSES AL FINAL
             document.getElementById('final-hits').innerText = hitsCount;
             document.getElementById('final-misses').innerText = missesCount;
             document.getElementById('final-rival-score').innerText = rivalScore;
+
+            // COMPROBAR Y GUARDAR NUEVO RÉCORD PERSONAL
+            if (currentLevelId) {
+                const oldRecord = parseInt(localStorage.getItem(`goopu_hs_${currentLevelId}`) || "0");
+                if (score > oldRecord) {
+                    localStorage.setItem(`goopu_hs_${currentLevelId}`, score);
+                    document.getElementById('new-record-badge').classList.remove('hidden');
+                }
+            }
+
             document.getElementById('layer-results').classList.remove('hidden');
         } else {
             animId = requestAnimationFrame(loop);
