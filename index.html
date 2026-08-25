@@ -47,7 +47,6 @@
         .btn:hover { background: var(--theme-color); color: #000; box-shadow: 0 0 25px var(--theme-color); }
         .btn:active { transform: scale(0.95); }
 
-        /* INPUT DE SALA MULTIJUGADOR */
         #room-input {
             padding: 10px; font-size: 1.2rem; text-align: center;
             background: transparent; border: 2px solid #fff; color: #fff;
@@ -97,14 +96,48 @@
         
         #score-display { position: absolute; top: 20px; right: 20px; font-size: 1.8rem; text-shadow: 0 0 10px var(--theme-color); font-weight: bold; }
         
-        /* ESTILO PARA EL RIVAL */
         #rival-display { 
             position: absolute; top: 60px; right: 20px; 
             font-size: 1.2rem; color: #ff3333; font-weight: bold;
             text-shadow: 0 0 5px #ff0000;
         }
 
+        /* BARRA DE PROGRESO DE TIEMPO */
+        #progress-container {
+            position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+            width: 45%; height: 10px; background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        #progress-bar-fill {
+            width: 0%; height: 100%; background: var(--theme-color);
+            box-shadow: 0 0 10px var(--theme-color); transition: width 0.1s linear;
+        }
+        #time-display {
+            position: absolute; top: 32px; left: 50%; transform: translateX(-50%);
+            font-size: 0.75rem; color: #fff; text-shadow: 0 0 5px #000;
+        }
+
         #combo-text { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); font-size: 4rem; font-weight: 900; opacity: 0; transition: opacity 0.15s; text-align: center; width: 100%; }
+
+        /* PANTALLA DE DERROTA FUTURE FUNK STYLE */
+        .defeat-overlay {
+            background: rgba(25, 0, 0, 0.96) !important;
+            border: 4px solid #ff0000;
+        }
+        .glitch-loser {
+            color: #ff0000; font-size: 4.5rem; font-weight: 900;
+            text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000;
+            animation: pulseRed 0.3s infinite alternate;
+            margin: 0; letter-spacing: 5px;
+        }
+        .sub-loser {
+            color: #ff3333; font-size: 1.2rem; margin: 15px 0 25px 0;
+            letter-spacing: 3px; font-weight: bold; text-transform: uppercase;
+        }
+        @keyframes pulseRed {
+            0% { transform: scale(1); text-shadow: 0 0 20px #ff0000; }
+            100% { transform: scale(1.05); text-shadow: 0 0 50px #ff0000, 0 0 80px #ff0000; }
+        }
 
         .volume-container { margin: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--theme-color); }
         input[type=range] { width: 220px; height: 6px; cursor: pointer; accent-color: var(--theme-color); }
@@ -129,13 +162,11 @@
         <input type="file" id="audio-upload" accept="audio/*" class="hidden">
         
         <button class="btn" id="mode-toggle" onclick="toggleMode()">MODO: PC</button>
-        
-        <div id="loading-msg" style="margin-top:20px; color: #ff0; display:none;">Cargando canción, espera...</div>
     </div>
 
     <div id="menu-levels" class="overlay hidden">
         <h2 style="color:var(--theme-color); margin-bottom:20px;">SELECCIONA CANCIÓN</h2>
-        <p style="font-size:0.8rem; color:#fff; margin-bottom:10px;">(Asegúrense de elegir la misma)</p>
+        <p style="font-size:0.8rem; color:#fff; margin-bottom:10px;">(Asegúrense de elegir la misma en multijugador)</p>
         <div class="song-grid" id="levels-list"></div>
         <button class="btn" style="margin-top:20px; border-color:#fff; color:#fff;" onclick="showMain()">VOLVER</button>
     </div>
@@ -150,11 +181,23 @@
         <button class="btn" style="border-color:#f33; color:#f33;" onclick="location.reload()">SALIR</button>
     </div>
 
+    <!-- PANTALLA DE RESULTADOS (VICTORIA) -->
     <div id="layer-results" class="overlay hidden">
         <h1 style="color:#fff;">¡TERMINADO!</h1>
-        <div style="font-size: 2.5rem; margin: 20px 0;">TU SCORE: <span id="final-score" style="color:var(--theme-color)">0</span></div>
-        <div style="font-size: 1.5rem; margin: 10px 0; color:#ff3333;">RIVAL: <span id="final-rival-score">0</span></div>
+        <div style="font-size: 2.2rem; margin: 10px 0;">SCORE: <span id="final-score" style="color:var(--theme-color)">0</span></div>
+        <div style="font-size: 1.2rem; color:#00ff66; margin: 5px 0;">NOTAS ACERTADAS: <span id="final-hits">0</span></div>
+        <div style="font-size: 1.2rem; color:#ff3333; margin: 5px 0;">MISSES: <span id="final-misses">0</span></div>
+        <div id="final-rival-container" style="font-size: 1.4rem; margin: 15px 0; color:#ff3333;" class="hidden">RIVAL: <span id="final-rival-score">0</span></div>
         <button class="btn" onclick="location.reload()">VOLVER AL MENÚ</button>
+    </div>
+
+    <!-- PANTALLA DE DERROTA (FUTURE FUNK STYLE) -->
+    <div id="layer-defeat" class="overlay defeat-overlay hidden">
+        <h1 class="glitch-loser">¡PERDEDOR!</h1>
+        <div class="sub-loser">FAIL • 10 MISSES • INTÉNTALO DE NUEVO</div>
+        <div style="font-size: 1.2rem; color:#fff; margin: 5px 0;">NOTAS ACERTADAS: <span id="defeat-hits">0</span></div>
+        <div style="font-size: 1.2rem; color:#ff3333; margin: 5px 0;">MISSES TOTALES: <span id="defeat-misses">10</span></div>
+        <button class="btn" style="border-color:#ff0000; color:#ff0000; margin-top:20px;" onclick="location.reload()">REINTENTAR</button>
     </div>
 
     <div id="layer-countdown" class="overlay hidden">
@@ -172,41 +215,44 @@
         </div>
         
         <div id="hud">
+            <div id="progress-container">
+                <div id="progress-bar-fill"></div>
+            </div>
+            <div id="time-display">0:00 / 0:00</div>
+
             <div id="score-display">0</div>
-            <div id="rival-display">RIVAL: 0</div>
+            <div id="rival-display" class="hidden">RIVAL: 0</div>
             <div id="combo-text">PERFECT</div>
             <button id="pause-btn-ui" onclick="pauseGame()">||</button>
         </div>
     </div>
 
 <script>
-    // --- CONEXIÓN MULTIJUGADOR ---
-    // ¡¡¡REEMPLAZA ESTO CON TU URL DE RAILWAY!!!
     const socket = io("https://goopu-server.onrender.com"); 
     
     let currentRoom = "global";
     let rivalScore = 0;
+    let isMultiplayer = false;
 
     socket.on('connect', () => {
         console.log("Conectado al servidor multijugador!");
     });
 
     socket.on('opponent-data', (data) => {
+        if(!isMultiplayer) return;
         rivalScore = data.score;
         document.getElementById('rival-display').innerText = "RIVAL: " + rivalScore;
-        // Efecto visual si el rival hace combo
         if(data.combo > 5 && data.combo % 10 === 0) {
             document.getElementById('rival-display').style.transform = "scale(1.2)";
             setTimeout(() => document.getElementById('rival-display').style.transform = "scale(1)", 200);
         }
     });
 
-    // --- CÓDIGO DEL JUEGO ORIGINAL ---
+    // 1. SE ELIMINÓ "ORULA" DE LA LISTA DE CANCIONES
     const levels = [
         { id: 1, name: "Camuflash", difficulty: "hard", url: "https://files.catbox.moe/8kcoq7.mp3" },
         { id: 2, name: "Miau", difficulty: "medium", url: "https://files.catbox.moe/3ymop1.mp3" },
         { id: 3, name: "Passionfruit", difficulty: "easy", url: "https://files.catbox.moe/3i0yh1.mp3" },
-        { id: 4, name: "Orula", difficulty: "medium", url: "https://files.catbox.moe/lsa4pe.mp3" },
         { id: 5, name: "Low Rider", difficulty: "hard", url: "https://files.catbox.moe/f6bsw0.mp3" }
     ];
 
@@ -215,6 +261,9 @@
     
     let audioCtx, audioBuffer, audioSource, gainNode;
     let notes = [], score = 0, combo = 0;
+    let hitsCount = 0, missesCount = 0; // 8. CONTEO DE NOTAS Y MISSES
+    const MAX_MISSES = 10; // 2. LÍMITE DE 10 MISSES
+
     let isPlaying = false, isPaused = false, isMobile = false;
     let startTime = 0, pauseTime = 0;
     let animId;
@@ -286,16 +335,26 @@
         document.getElementById('menu-levels').classList.add('hidden');
         document.getElementById('menu-main').classList.remove('hidden');
     }
+
     function openLevels() {
-        // Unirse a la sala antes de ver niveles
         const inputCode = document.getElementById('room-input').value.trim();
-        currentRoom = inputCode || "global"; // Si está vacío, usa sala global
-        socket.emit("join-room", currentRoom);
-        console.log("Uniéndose a sala: " + currentRoom);
+        // 7. OCULTAR RIVAL SI NO HAY MULTIJUGADOR (CÓDIGO DE SALA)
+        if(inputCode !== "") {
+            isMultiplayer = true;
+            currentRoom = inputCode;
+            socket.emit("join-room", currentRoom);
+            document.getElementById('rival-display').classList.remove('hidden');
+            document.getElementById('final-rival-container').classList.remove('hidden');
+        } else {
+            isMultiplayer = false;
+            document.getElementById('rival-display').classList.add('hidden');
+            document.getElementById('final-rival-container').classList.add('hidden');
+        }
 
         document.getElementById('menu-main').classList.add('hidden');
         document.getElementById('menu-levels').classList.remove('hidden');
     }
+
     function toggleMode() {
         isMobile = !isMobile;
         document.getElementById('mode-toggle').innerText = isMobile ? "MODO: CELULAR" : "MODO: PC";
@@ -318,7 +377,6 @@
             setDifficulty(diff);
             generateNotes();
             
-            // Resetear rival
             rivalScore = 0;
             document.getElementById('rival-display').innerText = "RIVAL: 0";
             
@@ -330,20 +388,33 @@
         }
     }
 
+    // 6. AVISO DE CREACIÓN CON IA AL SUBIR MÚSICA LOCAL
     document.getElementById('audio-upload').onchange = async (e) => {
         if(!e.target.files[0]) return;
+        
+        alert("⚠️ AVISO: La creación de niveles personalizados con audios locales es realizada con algoritmos de IA/frecuencia. Es posible que las notas y la canción no estén sincronizadas al 100%.");
+
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const file = e.target.files[0];
         const arrayBuffer = await file.arrayBuffer();
         audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        
         setDifficulty('medium');
         generateNotes();
         document.getElementById('menu-main').classList.add('hidden');
         
-        // Unirse si subes tu propia música también
         const inputCode = document.getElementById('room-input').value.trim();
-        currentRoom = inputCode || "global";
-        socket.emit("join-room", currentRoom);
+        if(inputCode !== "") {
+            isMultiplayer = true;
+            currentRoom = inputCode;
+            socket.emit("join-room", currentRoom);
+            document.getElementById('rival-display').classList.remove('hidden');
+            document.getElementById('final-rival-container').classList.remove('hidden');
+        } else {
+            isMultiplayer = false;
+            document.getElementById('rival-display').classList.add('hidden');
+            document.getElementById('final-rival-container').classList.add('hidden');
+        }
         
         startCountdown();
     };
@@ -355,17 +426,21 @@
         else if (diff === 'hard') { noteSpeed = 1000; noteShape = 'diamond'; }
     }
 
+    // 5. SINCRONIZACIÓN MEJORADA Y CORRECCIÓN Nivel MIAU (PUNTO 2 DE TU LISTA)
     function generateNotes() {
         notes = [];
         const rawData = audioBuffer.getChannelData(0);
         let threshold = 0.15;
-        let interval = 0.15;
+        let interval = 0.18;
         let sampleStep = 15;
 
-        if (difficultyMode === 'hard') { threshold = 0.08; interval = 0.10; sampleStep = 20; } 
+        if (difficultyMode === 'hard') { threshold = 0.08; interval = 0.12; sampleStep = 20; } 
         else if (difficultyMode === 'easy') { threshold = 0.25; interval = 0.35; }
 
         const step = Math.floor(audioBuffer.sampleRate / sampleStep);
+
+        // CORRECCIÓN MIAU/INICIO: Ignorar los primeros 1.8 segundos para evitar que la nota aparezca pegada abajo sin reaccionar
+        const minStartTime = 1.8; 
 
         for (let i = step; i < rawData.length; i += step) {
             const val = Math.abs(rawData[i]);
@@ -373,13 +448,15 @@
             
             if (val > threshold && val > prev * 1.05) {
                 const t = i / audioBuffer.sampleRate;
-                if (notes.length === 0 || t - notes[notes.length-1].time > interval) {
-                    notes.push({ time: t, lane: Math.floor(Math.random() * 4), hit: false, missed: false });
+                if (t >= minStartTime) { // Solo agregar notas después del margen inicial
+                    if (notes.length === 0 || t - notes[notes.length-1].time > interval) {
+                        notes.push({ time: t, lane: Math.floor(Math.random() * 4), hit: false, missed: false });
+                    }
                 }
             }
         }
         if (notes.length < 10) {
-            for(let t=1; t<audioBuffer.duration; t+=0.5) {
+            for(let t = 2.0; t < audioBuffer.duration; t += 0.5) {
                 notes.push({ time: t, lane: Math.floor(Math.random()*4), hit:false, missed:false });
             }
         }
@@ -405,9 +482,11 @@
     }
 
     function startGame() {
-        score = 0; combo = 0; isPlaying = true; isPaused = false;
+        score = 0; combo = 0; hitsCount = 0; missesCount = 0; 
+        isPlaying = true; isPaused = false;
         document.getElementById('hud').style.display = 'block';
         document.getElementById('score-display').innerText = 0;
+        document.getElementById('progress-bar-fill').style.width = "0%";
         
         playAudioSource(0);
         loop();
@@ -454,22 +533,47 @@
         if(note) {
             note.hit = true;
             combo++;
+            hitsCount++;
             score += 100 + (combo * 10);
             showFeedback("PERFECT", currentTheme);
             
-            // --- ENVIAR PUNTOS AL SERVIDOR ---
-            socket.emit("send-score", { 
-                roomId: currentRoom, 
-                score: score, 
-                combo: combo 
-            });
-            // ---------------------------------
+            if(isMultiplayer) {
+                socket.emit("send-score", { 
+                    roomId: currentRoom, 
+                    score: score, 
+                    combo: combo 
+                });
+            }
             
         } else {
-            combo = 0;
-            showFeedback("MISS", "#f00");
+            registerMiss();
         }
         document.getElementById('score-display').innerText = score;
+    }
+
+    // 3. RESTAR PUNTOS Y CONTAR MISSES
+    function registerMiss() {
+        combo = 0;
+        missesCount++;
+        score = Math.max(0, score - 50); // Resta 50 puntos por miss (mínimo 0)
+        showFeedback("MISS", "#f00");
+
+        // 2. COMPROBAR SI PERDIÓ POR 10 MISSES
+        if(missesCount >= MAX_MISSES) {
+            triggerGameOver();
+        }
+    }
+
+    // PANTALLA DE DERROTA POR 10 MISSES
+    function triggerGameOver() {
+        isPlaying = false;
+        if(audioSource) audioSource.stop();
+        cancelAnimationFrame(animId);
+        
+        document.getElementById('hud').style.display = 'none';
+        document.getElementById('defeat-hits').innerText = hitsCount;
+        document.getElementById('defeat-misses').innerText = missesCount;
+        document.getElementById('layer-defeat').classList.remove('hidden');
     }
 
     function showFeedback(text, col) {
@@ -488,10 +592,24 @@
         if(idx > -1) handleHit(idx);
     });
 
+    // FORMATO TIEMPO MM:SS
+    function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
     function loop() {
         if(!isPlaying || isPaused) return;
         const now = audioCtx.currentTime - startTime;
         
+        // 9. ACTUALIZAR BARRA DE PROGRESO DE TIEMPO EN TIEMPO REAL
+        if(audioBuffer && audioBuffer.duration) {
+            const progressPct = Math.min(100, (now / audioBuffer.duration) * 100);
+            document.getElementById('progress-bar-fill').style.width = progressPct + "%";
+            document.getElementById('time-display').innerText = `${formatTime(now)} / ${formatTime(audioBuffer.duration)}`;
+        }
+
         ctx.fillStyle = "#05010a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -519,8 +637,7 @@
             const y = HIT_LINE_Y - (n.time - now) * noteSpeed;
             if(y > canvas.height && !n.missed) {
                 n.missed = true;
-                combo = 0;
-                showFeedback("MISS", "#f00");
+                registerMiss();
             }
             if(y > -50 && y < canvas.height + 50) {
                 const x = n.lane * LANE_WIDTH + (LANE_WIDTH/2);
@@ -543,7 +660,10 @@
             isPlaying = false;
             document.getElementById('hud').style.display = 'none';
             document.getElementById('final-score').innerText = score;
-            document.getElementById('final-rival-score').innerText = rivalScore; // Mostrar rival al final
+            // 8. MOSTRAR HITS Y MISSES AL FINAL
+            document.getElementById('final-hits').innerText = hitsCount;
+            document.getElementById('final-misses').innerText = missesCount;
+            document.getElementById('final-rival-score').innerText = rivalScore;
             document.getElementById('layer-results').classList.remove('hidden');
         } else {
             animId = requestAnimationFrame(loop);
